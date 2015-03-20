@@ -2,7 +2,9 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNet.Mvc.Rendering;
 using Microsoft.AspNet.PageExecutionInstrumentation;
@@ -168,6 +170,8 @@ namespace Microsoft.AspNet.Mvc.Razor
             // A layout page can specify another layout page. We'll need to continue
             // looking for layout pages until they're no longer specified.
             var previousPage = RazorPage;
+            var unRenderedSections = new HashSet<string>();
+
             while (!string.IsNullOrEmpty(previousPage.Layout))
             {
                 if (!bodyWriter.IsBuffering)
@@ -190,10 +194,21 @@ namespace Microsoft.AspNet.Mvc.Razor
                 layoutPage.RenderBodyDelegate = bodyWriter.CopyTo;
                 bodyWriter = await RenderPageAsync(layoutPage, context, executeViewStart: false);
 
-                // Verify that RenderBody is called, or that RenderSection is called for all sections
-                layoutPage.EnsureBodyAndSectionsWereRendered();
+                // Verify that RenderBody is called
+                layoutPage.EnsureBodyWasRendered();
+
+                unRenderedSections.ExceptWith(layoutPage.RenderedSections);
+                unRenderedSections.UnionWith(layoutPage.PreviousSectionWriters.Keys.Except(layoutPage.RenderedSections,
+                                                                             StringComparer.OrdinalIgnoreCase));
 
                 previousPage = layoutPage;
+            }
+
+            // If not all sections are rendered, throw.
+            if (unRenderedSections.Any())
+            {
+                var sectionNames = string.Join(", ", unRenderedSections);
+                throw new InvalidOperationException(Resources.FormatSectionsNotRendered(sectionNames));
             }
 
             if (bodyWriter.IsBuffering)
