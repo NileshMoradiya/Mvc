@@ -419,7 +419,7 @@ namespace Microsoft.AspNet.Mvc.Razor
 
             // Act
             await page.ExecuteAsync();
-            var ex = Assert.Throws<InvalidOperationException>(() => page.EnsureBodyAndSectionsWereRendered());
+            var ex = Assert.Throws<InvalidOperationException>(() => page.EnsureBodyWasRendered());
 
             // Assert
             Assert.Equal("The following sections have been defined but have not been rendered: 'header, footer'.",
@@ -427,7 +427,7 @@ namespace Microsoft.AspNet.Mvc.Razor
         }
 
         [Fact]
-        public async Task EnsureBodyAndSectionsWereRendered_ThrowsIfRenderBodyIsNotCalledFromPage()
+        public async Task EnsureBodyWasRendered_ThrowsIfRenderBodyIsNotCalledFromPage()
         {
             // Arrange
             var expected = new HelperResult(action: null);
@@ -438,7 +438,7 @@ namespace Microsoft.AspNet.Mvc.Razor
 
             // Act
             await page.ExecuteAsync();
-            var ex = Assert.Throws<InvalidOperationException>(() => page.EnsureBodyAndSectionsWereRendered());
+            var ex = Assert.Throws<InvalidOperationException>(() => page.EnsureBodyWasRendered());
 
             // Assert
             Assert.Equal("RenderBody must be called from a layout page.", ex.Message);

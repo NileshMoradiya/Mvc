@@ -170,7 +170,7 @@ namespace Microsoft.AspNet.Mvc.Razor
             // A layout page can specify another layout page. We'll need to continue
             // looking for layout pages until they're no longer specified.
             var previousPage = RazorPage;
-            var unRenderedSections = new HashSet<string>();
+            var unrenderedSections = new HashSet<string>();
 
             while (!string.IsNullOrEmpty(previousPage.Layout))
             {
@@ -197,17 +197,16 @@ namespace Microsoft.AspNet.Mvc.Razor
                 // Verify that RenderBody is called
                 layoutPage.EnsureBodyWasRendered();
 
-                unRenderedSections.ExceptWith(layoutPage.RenderedSections);
-                unRenderedSections.UnionWith(layoutPage.PreviousSectionWriters.Keys.Except(layoutPage.RenderedSections,
-                                                                             StringComparer.OrdinalIgnoreCase));
+                unrenderedSections.UnionWith(layoutPage.PreviousSectionWriters.Keys);
+                unrenderedSections.ExceptWith(layoutPage.RenderedSections);
 
                 previousPage = layoutPage;
             }
 
             // If not all sections are rendered, throw.
-            if (unRenderedSections.Any())
+            if (unrenderedSections.Any())
             {
-                var sectionNames = string.Join(", ", unRenderedSections);
+                var sectionNames = string.Join(", ", unrenderedSections);
                 throw new InvalidOperationException(Resources.FormatSectionsNotRendered(sectionNames));
             }
 
