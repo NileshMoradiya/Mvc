@@ -456,6 +456,57 @@ namespace Microsoft.AspNet.Mvc.Razor
         }
 
         [Fact]
+        public async Task RenderAsync_WithNestedSections_ThrowsIfSectionsWereDefinedButNotRendered()
+        {
+            // Arrange
+            var htmlEncoder = new HtmlEncoder();
+            var page = new TestableRazorPage(v =>
+            {
+                v.HtmlEncoder = htmlEncoder;
+                v.Layout = "~/Shared/Layout1.cshtml";
+                v.WriteLiteral("BodyContent");
+                v.DefineSection("foo", async writer =>
+                {
+                    await writer.WriteLineAsync("foo-content");
+                });
+            });
+            var nestedLayout = new TestableRazorPage(v =>
+            {
+                v.HtmlEncoder = htmlEncoder;
+                v.Layout = "~/Shared/Layout2.cshtml";
+                v.Write("NestedLayout" + Environment.NewLine);
+                v.RenderBodyPublic();
+                v.DefineSection("foo", async writer =>
+                {
+                    await writer.WriteLineAsync(htmlEncoder.HtmlEncode(v.RenderSection("foo").ToString()));
+                });
+            });
+            var baseLayout = new TestableRazorPage(v =>
+            {
+                v.HtmlEncoder = htmlEncoder;
+                v.Write("BaseLayout" + Environment.NewLine);
+                v.RenderBodyPublic();
+            });
+
+            var viewEngine = new Mock<IRazorViewEngine>();
+            viewEngine.Setup(p => p.FindPage(It.IsAny<ActionContext>(), "~/Shared/Layout1.cshtml"))
+                       .Returns(new RazorPageResult("~/Shared/Layout1.cshtml", nestedLayout));
+            viewEngine.Setup(p => p.FindPage(It.IsAny<ActionContext>(), "~/Shared/Layout2.cshtml"))
+                       .Returns(new RazorPageResult("~/Shared/Layout2.cshtml", baseLayout));
+
+            var view = new RazorView(viewEngine.Object,
+                                     Mock.Of<IRazorPageActivator>(),
+                                     CreateViewStartProvider(),
+                                     page,
+                                     isPartial: false);
+            var viewContext = CreateViewContext(view);
+
+            // Act and Assert
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => view.RenderAsync(viewContext));
+            Assert.Equal("The following sections have been defined but have not been rendered: 'foo'.", ex.Message);
+        }
+
+        [Fact]
         public async Task RenderAsync_ThrowsIfBodyWasNotRendered()
         {
             // Arrange
