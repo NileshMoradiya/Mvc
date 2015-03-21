@@ -545,6 +545,69 @@ namespace Microsoft.AspNet.Mvc.Razor
         }
 
         [Fact]
+        public async Task RenderAsync_ExecutesNestedLayoutsWithNestedSections()
+        {
+            // Arrange
+            var htmlEncoder = new HtmlEncoder();
+            var htmlEncodedNewLine = htmlEncoder.HtmlEncode(Environment.NewLine);
+            var expected = "BaseLayout" +
+                           htmlEncodedNewLine +
+                           "NestedLayout" +
+                           htmlEncodedNewLine +
+                           "BodyContent" +
+                           "foo-content" +
+                           Environment.NewLine +
+                           Environment.NewLine;
+
+            var page = new TestableRazorPage(v =>
+            {
+                v.HtmlEncoder = htmlEncoder;
+                v.Layout = "~/Shared/Layout1.cshtml";
+                v.WriteLiteral("BodyContent");
+                v.DefineSection("foo", async writer =>
+                {
+                    await writer.WriteLineAsync("foo-content");
+                });
+            });
+            var nestedLayout = new TestableRazorPage(v =>
+            {
+                v.HtmlEncoder = htmlEncoder;
+                v.Layout = "~/Shared/Layout2.cshtml";
+                v.Write("NestedLayout" + Environment.NewLine);
+                v.RenderBodyPublic();
+                v.DefineSection("foo", async writer =>
+                {
+                    await writer.WriteLineAsync(htmlEncoder.HtmlEncode(v.RenderSection("foo").ToString()));
+                });
+            });
+            var baseLayout = new TestableRazorPage(v =>
+            {
+                v.HtmlEncoder = htmlEncoder;
+                v.Write("BaseLayout" + Environment.NewLine);
+                v.RenderBodyPublic();
+                v.Write(v.RenderSection("foo"));
+            });
+            var viewEngine = new Mock<IRazorViewEngine>();
+            viewEngine.Setup(p => p.FindPage(It.IsAny<ActionContext>(), "~/Shared/Layout1.cshtml"))
+                       .Returns(new RazorPageResult("~/Shared/Layout1.cshtml", nestedLayout));
+            viewEngine.Setup(p => p.FindPage(It.IsAny<ActionContext>(), "~/Shared/Layout2.cshtml"))
+                       .Returns(new RazorPageResult("~/Shared/Layout2.cshtml", baseLayout));
+
+            var view = new RazorView(viewEngine.Object,
+                                     Mock.Of<IRazorPageActivator>(),
+                                     CreateViewStartProvider(),
+                                     page,
+                                     isPartial: false);
+            var viewContext = CreateViewContext(view);
+
+            // Act
+            await view.RenderAsync(viewContext);
+
+            // Assert
+            Assert.Equal(expected, viewContext.Writer.ToString());
+        }
+
+        [Fact]
         public async Task RenderAsync_DoesNotCopyContentOnceRazorTextWriterIsNoLongerBuffering()
         {
             // Arrange

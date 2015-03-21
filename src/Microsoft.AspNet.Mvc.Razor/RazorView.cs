@@ -170,7 +170,7 @@ namespace Microsoft.AspNet.Mvc.Razor
             // A layout page can specify another layout page. We'll need to continue
             // looking for layout pages until they're no longer specified.
             var previousPage = RazorPage;
-            var unrenderedSections = new HashSet<string>();
+            var unrenderedSections = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             while (!string.IsNullOrEmpty(previousPage.Layout))
             {
